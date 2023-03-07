@@ -5,8 +5,8 @@ import subprocess
 import base64
 import sys
 import platform
-import datetime
 import json
+from datetime import datetime
 from distutils.dir_util import copy_tree
 
 
@@ -34,9 +34,6 @@ def check_prerequisites():
         sys.exit(1)
     if not os.environ.get('ARTIFACTORY_PASS'):
         log("ERROR: Environment variable 'ARTIFACTORY_PASS' is not defined!")
-        sys.exit(1)
-    if not os.path.exists(os.path.join(os.path.dirname(__file__), "..", "drop_tool", "pdt.py")):
-        log("ERROR: Submodule for CDT is not initialized!")
         sys.exit(1)
 
 

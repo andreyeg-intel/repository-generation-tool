@@ -1,0 +1,8 @@
+argparse
+dohq-artifactory
+requests
+responses
+pytest
+pytest-cov
+PyYAML
+urllib3

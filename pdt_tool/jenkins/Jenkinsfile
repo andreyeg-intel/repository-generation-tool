@@ -1,0 +1,109 @@
+// ============================================================================
+// INTEL CONFIDENTIAL
+// ============================================================================
+
+// Load the shared library
+String sharedLibBranch = env.sharedLibBranch ?: "master"
+library("common_lib@${sharedLibBranch}")
+
+// Build default args
+defaultArgs = params + [
+    // Job global configs
+    triggers: [
+        github: [
+            token: "component-drop-tool"
+        ]
+    ],
+]
+
+/**************************************
+ * Actual Pipeline
+ *************************************/
+buildlib.smartStage(name: "Jenkins Pipeline") {
+    // Reload the job properties
+    sysint.loadJobProperties(defaultArgs)
+
+    boolean isGithubPushTrigger = gitlib.isGithubPushTrigger()
+    cloudNode(
+        image: "cache-registry.caas.intel.com/cache/library/python:3",
+        checkout: !isGithubPushTrigger,
+        resourceRequestCpu: "1",
+        resourceLimitCpu: "1",
+        resourceRequestMemory: "1Gi",
+        resourceLimitMemory: "1Gi",
+    ) {
+        if (isGithubPushTrigger) {
+            publishWheelFile()
+        } else {
+            runUnitTesting()
+        }
+    }
+}
+
+void publishWheelFile() {
+    currentBuild.displayName = "#${env.BUILD_NUMBER} - Merge Event Trigger"
+    lock("component-drop-tool wheel publish") {
+        gitlib.clone(
+            repository: "https://github.com/intel-innersource/frameworks.devops.oneapi.tools.component-drop-tool",
+            reference: "master",
+            credentials: faceless.credentials.githubToken,
+        )
+
+        String version = "1.0.${env.BUILD_NUMBER}"
+        writeFile file: "version.txt", text: version
+
+        sh "python3 setup.py bdist_wheel"
+
+        dir("dist") {
+            String wheelFile = fs.expandFilename("*.whl")
+            String artifactoryServer = "ubit-artifactory-or"
+            String artifactoryUrl = "https://${artifactoryServer}.intel.com"
+            String target = "satgoneapi-ci-pypi-or-local/tdo/intel_cdt"
+            String wheelTarget = "${target}/${wheelFile}"
+
+            retry(10) {
+                artifactorylib.upload(
+                    pattern: wheelFile,
+                    target: "${target}/",
+                    flat: false,
+                    recursive: true,
+                    explode: false,
+                    server: artifactoryServer,
+                )
+
+                // Set the properties recursively on the folder
+                String url = "${artifactoryUrl}/artifactory/api/storage/${wheelTarget}"
+                String properties = [
+                    "auto.jenkins.build_number=${env.BUILD_NUMBER}",
+                    "auto.jenkins.url=${env.BUILD_URL}",
+                    "retention.days=365",
+                ].join(";")
+                httpRequest(
+                    authentication: faceless.credentials.artifactory.or,
+                    httpMode: "PUT",
+                    ignoreSslErrors: true,
+                    responseHandle: "NONE",
+                    url: "${url}?properties=${properties}",
+                    wrapAsMultipart: false,
+                )
+            }
+        }
+    }
+}
+
+void runUnitTesting() {
+    sh "python -m pip install -r requirements.txt"
+
+    String junitReport = "result.xml"
+    String coverageReport = "coverage.xml"
+    try {
+        sh "pytest -v --cov-report xml --cov=. --cov-config=.coveragerc --junit-xml=${junitReport} tests/"
+    } finally {
+        if (fileExists(junitReport)) {
+            junit testResults: junitReport, keepLongStdio: true
+        }
+        if (fileExists(coverageReport)) {
+            cobertura coberturaReportFile: coverageReport
+        }
+    }
+}

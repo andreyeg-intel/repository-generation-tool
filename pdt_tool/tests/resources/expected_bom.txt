@@ -1,0 +1,8 @@
+DeliveryName	InstallName	FileCheckSum	Owner	Description	FileOrigin	InstalledFilePermission
+<deliverydir>/file1_symlink.txt	<installdir>/file1_symlink.txt	4293851419	oneAPI_CI		Internal	777
+<deliverydir>/file1.txt	<installdir>/file1.txt	4293851419	oneAPI_CI		Internal	777
+<deliverydir>/file2.txt	<installdir>/file2.txt	2365957832	oneAPI_CI		Internal	644
+<deliverydir>/file3.txt	<installdir>/file3.txt	1595696916	oneAPI_CI		Internal	771
+<deliverydir>/nested_folder/file4.txt	<installdir>/nested_folder/file4.txt	1758665070	oneAPI_CI		Internal	644
+<deliverydir>/nested_folder/file5.txt	<installdir>/nested_folder/file5.txt	3133855922	oneAPI_CI		Internal	654
+#***Intel Confidential - Internal Use Only***
